@@ -1,0 +1,173 @@
+.Planning-container {
+    .Planning {
+        width: 888px;
+        top: -10px;
+        margin-left: 222px;
+        padding: 10px 0px 0px 0px;
+        gap: 10px;
+        display: flex;
+        opacity: 0px;
+
+
+        .Planning-analysis {
+            padding-left: 12px;
+            display: flex;
+            width: 570px;
+            gap: 0px;
+            background-color: #262D34;
+            border-radius: 20px;
+            opacity: 0px;
+            align-items: center;
+
+
+            .Planning-analysis-icon {
+                width: 51.04px;
+            }
+
+            .Planning-analysis-title {
+                color: #B7A800;
+                font-family: Source Sans Pro;
+                font-size: 38px;
+                font-weight: 600;
+                text-align: center;
+
+
+            }
+        }
+
+        button {
+            // height: 12px;
+            border: none;
+            margin-left: 270px;
+            background-color: #1E252B;
+        }
+
+    }
+
+    .Planning-maps {
+        width: 1116px;
+        height: 265px;
+        margin-top: 10px;
+        border: 3px solid #000000;
+
+
+        .Planning-maps-item {
+            width: 100%;
+            height: 100%;
+            display: flex;
+
+            .Planning-maps-one {
+                width: 35%;
+                display: flex;
+            }
+
+            .Planning-maps-two {
+                width: 35%;
+                display: flex;
+                margin: 0 5px;
+            }
+
+            .Planning-maps-father {
+                width: 35%;
+                display: flex;
+            }
+
+        }
+
+    }
+
+    .Planning-search-vector {
+        display: flex;
+        align-items: center;
+
+        .Planning-search {
+            background-color: #2C353D;
+            margin: 20px 0px 0 365px;
+            height: 40px;
+            width: 440px;
+            border-radius: 8px;
+            outline: none;
+            display: flex;
+            align-items: center;
+
+            input {
+                background-color: #2C353D;
+                padding-top: 5px;
+                padding-bottom: 5px;
+                padding-left: 10px;
+                padding-right: 10px;
+                width: 93%;
+                height: 100%;
+                border-radius: 8px;
+                font-size: 14px;
+                border: none;
+                outline: none;
+                color: #858EAD;
+            }
+        }
+
+        button {
+            border: none;
+            background: none;
+        }
+
+        .Planning-vector {
+            padding: 26px 0 0 270px;
+        }
+    }
+
+
+
+    .Planning-table {
+        margin-top: 6px;
+        border-collapse: collapse;
+        width: 100%;
+        border: 5px solid #000000;
+
+        .Planning-table_data {
+            width: 100%;
+            color: white;
+        }
+
+        // th {
+
+        // }
+
+        th,
+        td {
+            border: 1px solid #B9B9B9;
+            padding: 8px;
+            text-align: left;
+        }
+    }
+
+
+    .Planning-table th {
+        text-align: center;
+    }
+
+}
+
+.Planning-maps_map {
+    width: 100%;
+    height: auto;
+    display: flex;
+    position: relative;
+}
+
+.Planning-maps_clear {
+    position: absolute;
+    z-index: 1000;
+    margin: 5px 0 0 330px;
+}
+
+th.Planning-table_th {
+    width: 70px;
+}
+
+.css-13nl15t {
+    top: 60px !important;
+    right: -10px !important;
+    height: 130px !important;
+    z-index: 1000;
+}
