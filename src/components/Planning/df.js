@@ -1,19 +1,23 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import { Container } from "react-bootstrap";
-import "./Planning.scss"
+import "./Planning.scss";
 import { searchQueryAPI } from '../../services/api';
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import Slider from '@mui/material/Slider';
+import Box from '@mui/material/Box';
 
-const ImageOverlayComponent = ({ imageUrl, bounds }) => {
+const ImageOverlayComponent = ({ imageUrl, bounds, opacity }) => {
     const map = useMap();
     const overlayRef = useRef(null);
 
     useEffect(() => {
         if (imageUrl && bounds) {
-            const overlay = L.imageOverlay(imageUrl, bounds).addTo(map);
+            const overlay = L.imageOverlay(imageUrl, bounds, { opacity }).addTo(map);
             overlayRef.current = overlay;
+
+            map.flyToBounds(bounds);
         }
 
         return () => {
@@ -21,16 +25,20 @@ const ImageOverlayComponent = ({ imageUrl, bounds }) => {
                 map.removeLayer(overlayRef.current);
             }
         };
-    }, [map, imageUrl, bounds]);
+    }, [map, imageUrl, bounds, opacity]);
 
     return null;
 };
+
 const Planning = (props) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [selectedResult, setSelectedResult] = useState(null);
-    const [overlayImage, setOverlayImage] = useState(null);
-    const [overlayBounds, setOverlayBounds] = useState(null);
+    const [overlayImages, setOverlayImages] = useState([null, null, null]);
+    const [overlayBounds, setOverlayBounds] = useState([null, null, null]);
+    const [opacities, setOpacities] = useState([1, 1, 1]);
+    const [hanoiCoordinates, setHanoiCoordinates] = useState([21.0285, 105.8542]);
+    const [mapHeight, setMapHeight] = useState(1);
 
     const handleSearchChange = (event) => {
         setSearchQuery(event.target.value);
@@ -41,9 +49,11 @@ const Planning = (props) => {
         if (searchQuery.trim() !== '') {
             try {
                 const response = await searchQueryAPI(searchQuery);
-                console.log('Search results:', response.data);
                 setSearchResults(response.data);
 
+                if (response.data.length > 0) {
+                    handleResultClick(response.data[0]);
+                }
             } catch (error) {
                 console.error('Search error:', error);
             }
@@ -54,24 +64,41 @@ const Planning = (props) => {
     const handleResultClick = (result) => {
         setSelectedResult(result);
         setHanoiCoordinates([result.Imglat, result.Imglng]);
-        setOverlayImage(result.ZoningImg);
 
-        const northWest = [21.0300, 105.7500]; // Tọa độ góc tây bắc
-        const southEast = [21.0100, 105.8000]; // Tọa độ góc đông nam
-        setOverlayBounds([northWest, southEast]);
+        const northWest = [result.Imglat + 0.01, result.Imglng - 0.01];
+        const southEast = [result.Imglat - 0.01, result.Imglng + 0.01];
+        const bounds = [northWest, southEast];
 
-        console.log('Selected result:', result);
+        setOverlayImages([result.ZoningImg, result.ZoningImg, result.ZoningImg]);
+        setOverlayBounds([bounds, bounds, bounds]);
     };
 
-    useEffect(() => {
-        if (searchResults.length > 0) {
-            const firstResult = searchResults[0];
-            console.log('firstResult result:', firstResult);
-            setHanoiCoordinates([firstResult.Imglat, firstResult.Imglng]);
-        }
-    }, [searchResults]);
+    const handleOpacityChange = (index, newValue) => {
+        const newOpacities = [...opacities];
+        newOpacities[index] = newValue / 100;
+        setOpacities(newOpacities);
+    };
 
-    const [hanoiCoordinates, setHanoiCoordinates] = useState([21.0285, 105.8542]);
+    const toggleMapHeight = () => {
+        setMapHeight(mapHeight === 1 ? 2 : mapHeight === 2 ? 3 : 1);
+    };
+
+    const handleCloseOverlay = (index) => {
+        const newOverlayImages = [...overlayImages];
+        const newOverlayBounds = [...overlayBounds];
+
+        newOverlayImages[index] = null;
+        newOverlayBounds[index] = null;
+
+        setOverlayImages(newOverlayImages);
+        setOverlayBounds(newOverlayBounds);
+    };
+
+    const maps = [
+        { id: 0, className: 'Planning-maps-one' },
+        { id: 1, className: 'Planning-maps-two' },
+        { id: 2, className: 'Planning-maps-father' },
+    ];
 
     return (  // phân tích quy hoạch planning analysis
         <Container className="Planning-container">
@@ -112,7 +139,7 @@ const Planning = (props) => {
                     </div>
                     <div className="Planning-analysis-title">PHÂN TÍCH QUY HOẠCH</div>
                 </div>
-                <button>
+                <button onClick={toggleMapHeight}>
                     <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <g filter="url(#filter0_d_4150_7182)">
                             <rect x="4.5" y="0.5" width="39" height="39" rx="14.5" fill="#2C353D" />
@@ -137,45 +164,58 @@ const Planning = (props) => {
                     </svg>
                 </button>
             </div>
-            <div className="Planning-maps">
+            <div className={`Planning-maps height-${mapHeight}`}>
                 <div className="Planning-maps-item">
-                    <div className="Planning-maps-one">
+                    {/* <div className="Planning-maps-one">
                         <div className="Planning-maps_map">
                             <MapContainer center={hanoiCoordinates} zoom={13} style={{ height: "100%", width: "100%" }}>
                                 <TileLayer
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 />
-
                                 {selectedResult && overlayBounds && (
                                     <ImageOverlayComponent
                                         imageUrl={overlayImage}
                                         bounds={overlayBounds}
+                                        opacity={opacity}
                                     />
                                 )}
                             </MapContainer>
+                            <Box sx={{ position: 'absolute', top: 10, right: 10, height: 300 }} className="slider-container">
+                                <Slider
+                                    orientation="vertical"
+                                    value={opacity * 100}
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    onChange={handleOpacityChange}
+                                    valueLabelDisplay="auto"
+                                    aria-labelledby="opacity-slider"
+                                />
+                            </Box>
                             <div className="Planning-maps_clear">
-                                <svg width="30" height="28" viewBox="0 0 44 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g filter="url(#filter0_d_3934_3795)">
-                                        <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" fill="#B74C00" />
-                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" fill="#B74C00" />
-                                        <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" stroke="black" stroke-linecap="square" />
-                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" stroke="black" stroke-linecap="square" />
-                                    </g>
-                                    <defs>
-                                        <filter id="filter0_d_3934_3795" x="0.5" y="0.5" width="43" height="41" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-                                            <feFlood flood-opacity="0" result="BackgroundImageFix" />
-                                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                                            <feOffset dy="4" />
-                                            <feGaussianBlur stdDeviation="2" />
-                                            <feComposite in2="hardAlpha" operator="out" />
-                                            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
-                                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_3934_3795" />
-                                            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_3934_3795" result="shape" />
-                                        </filter>
-                                    </defs>
-                                </svg>
-
+                                <button onClick={handleCloseOverlay}>
+                                    <svg width="30" height="28" viewBox="0 0 44 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <g filter="url(#filter0_d_3934_3795)">
+                                            <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" fill="#B74C00" />
+                                            <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" fill="#B74C00" />
+                                            <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" stroke="black" stroke-linecap="square" />
+                                            <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" stroke="black" stroke-linecap="square" />
+                                        </g>
+                                        <defs>
+                                            <filter id="filter0_d_3934_3795" x="0.5" y="0.5" width="43" height="41" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                                                <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+                                                <feOffset dy="4" />
+                                                <feGaussianBlur stdDeviation="2" />
+                                                <feComposite in2="hardAlpha" operator="out" />
+                                                <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
+                                                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_3934_3795" />
+                                                <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_3934_3795" result="shape" />
+                                            </filter>
+                                        </defs>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -186,12 +226,26 @@ const Planning = (props) => {
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 />
-                                <Marker position={hanoiCoordinates}>
-                                    <Popup>
-                                        Hà Nội, Việt Nam
-                                    </Popup>
-                                </Marker>
+                                {selectedResult && overlayBounds && (
+                                    <ImageOverlayComponent
+                                        imageUrl={overlayImage}
+                                        bounds={overlayBounds}
+                                        opacity={opacity}
+                                    />
+                                )}
                             </MapContainer>
+                            <Box sx={{ position: 'absolute', top: 10, right: 10, height: 300 }} className="slider-container">
+                                <Slider
+                                    orientation="vertical"
+                                    value={opacity * 100}
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    onChange={handleOpacityChange}
+                                    valueLabelDisplay="auto"
+                                    aria-labelledby="opacity-slider"
+                                />
+                            </Box>
                             <div className="Planning-maps_clear">
                                 <svg width="30" height="28" viewBox="0 0 44 42" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g filter="url(#filter0_d_3934_3795)">
@@ -224,37 +278,91 @@ const Planning = (props) => {
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 />
-                                <Marker position={hanoiCoordinates}>
-                                    <Popup>
-                                        Hà Nội, Việt Nam
-                                    </Popup>
-                                </Marker>
+                                {selectedResult && overlayBounds && (
+                                    <ImageOverlayComponent
+                                        imageUrl={overlayImage}
+                                        bounds={overlayBounds}
+                                        opacity={opacity}
+                                    />
+                                )}
                             </MapContainer>
+                            <Box sx={{ position: 'absolute', top: 10, right: 10, height: 300 }} className="slider-container">
+                                <Slider
+                                    orientation="vertical"
+                                    value={opacity * 100}
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    onChange={handleOpacityChange}
+                                    valueLabelDisplay="auto"
+                                    aria-labelledby="opacity-slider"
+                                />
+                            </Box>
                             <div className="Planning-maps_clear">
-                                <svg width="30" height="28" viewBox="0 0 44 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g filter="url(#filter0_d_3934_3795)">
-                                        <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" fill="#B74C00" />
-                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" fill="#B74C00" />
-                                        <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" stroke="black" stroke-linecap="square" />
-                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" stroke="black" stroke-linecap="square" />
-                                    </g>
-                                    <defs>
-                                        <filter id="filter0_d_3934_3795" x="0.5" y="0.5" width="43" height="41" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-                                            <feFlood flood-opacity="0" result="BackgroundImageFix" />
-                                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                                            <feOffset dy="4" />
-                                            <feGaussianBlur stdDeviation="2" />
-                                            <feComposite in2="hardAlpha" operator="out" />
-                                            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
-                                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_3934_3795" />
-                                            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_3934_3795" result="shape" />
-                                        </filter>
-                                    </defs>
-                                </svg>
+                               
 
                             </div>
                         </div>
-                    </div>
+                    </div> */}
+                    {maps.map(map => (
+                        <div key={map.id} className={map.className}>
+                            <div className="Planning-maps_map">
+                                <MapContainer center={hanoiCoordinates} zoom={13} style={{ height: "100%", width: "100%" }}>
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    />
+                                    {overlayBounds[map.id] && (
+                                        <ImageOverlayComponent
+                                            imageUrl={overlayImages[map.id]}
+                                            bounds={overlayBounds[map.id]}
+                                            opacity={opacities[map.id]}
+                                        />
+                                    )}
+                                </MapContainer>
+                                {overlayBounds[map.id] && (
+                                    <>
+                                        <Box sx={{ position: 'absolute', top: 10, right: 10, height: 300 }} className="slider-container">
+                                            <Slider
+                                                orientation="vertical"
+                                                value={opacities[map.id] * 100}
+                                                min={0}
+                                                max={100}
+                                                step={1}
+                                                onChange={(e, newValue) => handleOpacityChange(map.id, newValue)}
+                                                valueLabelDisplay="auto"
+                                                aria-labelledby="opacity-slider"
+                                            />
+                                        </Box>
+                                        <div className="Planning-maps_clear">
+                                            <button onClick={() => handleCloseOverlay(map.id)}>
+                                                <svg width="30" height="28" viewBox="0 0 44 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <g filter="url(#filter0_d_3934_3795)">
+                                                        <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" fill="#B74C00" />
+                                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" fill="#B74C00" />
+                                                        <path d="M21.9998 14.4858L18.222 10.9303L15.5508 13.4444L19.3285 17L15.5508 20.5556L18.222 23.0697L21.9998 19.5142L25.7776 23.0697L28.4489 20.5556L24.6711 17L28.4489 13.4444L25.7776 10.9303L21.9998 14.4858Z" stroke="black" stroke-linecap="square" />
+                                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M39 1H5V33H39V1ZM8.77778 29.4444V4.55556H35.2222V29.4444H8.77778Z" stroke="black" stroke-linecap="square" />
+                                                    </g>
+                                                    <defs>
+                                                        <filter id="filter0_d_3934_3795" x="0.5" y="0.5" width="43" height="41" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                                            <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                                                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+                                                            <feOffset dy="4" />
+                                                            <feGaussianBlur stdDeviation="2" />
+                                                            <feComposite in2="hardAlpha" operator="out" />
+                                                            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
+                                                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_3934_3795" />
+                                                            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_3934_3795" result="shape" />
+                                                        </filter>
+                                                    </defs>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
 
             </div>
